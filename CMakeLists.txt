@@ -39,7 +39,7 @@ endif()
 set(ORIGINAL_CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH})
 set(ORIGINAL_CMAKE_REQUIRED_INCLUDES ${CMAKE_REQUIRED_INCLUDES})
 set(ORIGINAL_CMAKE_REQUIRED_LIBRARIES ${CMAKE_REQUIRED_LIBRARIES})
-set(OWN_CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${PROJECT_SOURCE_DIR}/cmake)
+set(OWN_CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${PROJECT_SOURCE_DIR}/cmake ${PROJECT_SOURCE_DIR}/RustCMake/cmake)
 set(CMAKE_MODULE_PATH ${OWN_CMAKE_MODULE_PATH})
 
 if(CMAKE_SIZEOF_VOID_P EQUAL 8)
@@ -289,6 +289,13 @@ else()
   set(WEBSOCKETS_INCLUDE_DIRS)
 endif()
 
+find_package(rustc)
+find_package(rustdoc)
+find_package(cargo)
+include(Rust)
+set(RUSTC_FLAGS -L ${CMAKE_BINARY_DIR}/lib -L ${CMAKE_BINARY_DIR}/cargo/target/debug/deps)
+set(RUSTDOC_FLAGS -L ${CMAKE_BINARY_DIR}/lib -L ${CMAKE_BINARY_DIR}/cargo/target/debug/deps)
+
 
 if(TARGET_OS AND TARGET_OS STREQUAL "mac")
   find_program(DMG dmg)
@@ -348,9 +355,22 @@ show_dependency_status("Zlib" ZLIB)
 if(WEBSOCKETS)
   show_dependency_status("Websockets" WEBSOCKETS)
 endif()
+show_dependency_status("rustc" RUSTC)
+show_dependency_status("rustdoc" RUSTDOC)
+show_dependency_status("cargo" CARGO)
 
 if(NOT(PYTHONINTERP_FOUND))
   message(SEND_ERROR "You must install Python to compile DDNet")
+endif()
+
+if(NOT(RUSTC_FOUND))
+  message(SEND_ERROR "You must install rustc to compile the DDNet client")
+endif()
+if(NOT(RUSTDOC_FOUND))
+  message(SEND_ERROR "You must install rustdoc to compile the DDNet client")
+endif()
+if(NOT(CARGO_FOUND))
+  message(SEND_ERROR "You must install cargo to compile the DDNet client")
 endif()
 
 if(MYSQL AND NOT(MYSQL_FOUND))
@@ -475,6 +495,20 @@ endif()
 # DEPENDENCY COMPILATION
 ########################################################################
 
+#get_rust_deps(rust/src/lib.rs RUSTEENET_DEPS)
+#rust_crate(rust/src/rusteenet-export.rs
+#           ALL
+#           TARGET_NAME rusteenet
+#           DESTINATION lib
+#           DEPENDS "${RUSTEENET_DEPS}"
+#           OTHER_RUSTC_FLAGS --crate-type dylib --crate-type rlib)
+add_custom_target(rusteenet_target ALL ${CARGO_EXECUTABLE} build
+                  DEPENDS ${PROJECT_SOURCE_DIR/rust}
+                  WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}/rust
+                  BYPRODUCTS ${PROJECT_SOURCE_DIR}/src/game/generated/rust_bindings.h)
+link_directories(${PROJECT_SOURCE_DIR}/rust/target/debug/)
+set(RUST_LIBS "rusteenet")
+
 if(CLIENT)
   # Static dependencies
   set_glob(JSON_SRC GLOB src/engine/external/json-parser json.c json.h)
@@ -542,7 +576,6 @@ generate_source("src/game/generated/protocol.cpp" "network_source")
 generate_source("src/game/generated/protocol.h" "network_header")
 generate_source("src/game/generated/server_data.cpp" "server_content_source")
 generate_source("src/game/generated/server_data.h" "server_content_header")
-
 
 ########################################################################
 # SHARED
@@ -679,6 +712,7 @@ set_glob(GAME_SHARED GLOB src/game
 set(GAME_GENERATED_SHARED
   src/game/generated/git_revision.cpp
   src/game/generated/protocol.h
+  src/game/generated/rust_bindings.h
 )
 
 # Static dependencies
@@ -690,7 +724,7 @@ list(APPEND TARGETS_DEP md5)
 set(DEPS ${DEP_MD5} ${ZLIB_DEP})
 
 # Libraries
-set(LIBS ${CMAKE_THREAD_LIBS_INIT} ${WEBSOCKETS_LIBRARIES} ${ZLIB_LIBRARIES} ${PLATFORM_LIBS})
+set(LIBS ${CMAKE_THREAD_LIBS_INIT} ${WEBSOCKETS_LIBRARIES} ${ZLIB_LIBRARIES} ${PLATFORM_LIBS} ${RUST_LIBS})
 
 # Targets
 add_library(engine-shared EXCLUDE_FROM_ALL OBJECT ${ENGINE_INTERFACE} ${ENGINE_SHARED} ${ENGINE_GENERATED_SHARED} ${BASE})

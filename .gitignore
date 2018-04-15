@@ -99,3 +99,6 @@ cscope.out
 *.vcxproj
 *.vs
 *.zip
+
+rust/target
+rust/Cargo.lock

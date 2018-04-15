@@ -3,12 +3,14 @@
 
 #include "entity.h"
 #include "gamecontext.h"
+#include "game/generated/rust_bindings.h"
 
 //////////////////////////////////////////////////
 // Entity
 //////////////////////////////////////////////////
 CEntity::CEntity(CGameWorld *pGameWorld, int ObjType)
 {
+    rustfunction2();
 	m_pGameWorld = pGameWorld;
 
 	m_ObjType = ObjType;
